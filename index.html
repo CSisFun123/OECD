@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title></title>
+  <!-- All css style here -->
+  <style type="text/css">
+    /* Style for page */
+    body {
+      background-color: grey;
+    }
+
+    .topdiv {
+      display: flex;
+      flex-direction: row;
+    }
+
+    .listing {
+      float: left;
+      width: 50%;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    p {
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 4em;
+    }
+
+    .picture {
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* bar graph style*/
+    text {
+      font-family: sans-serif;
+    }
+
+    .bar {
+      fill: cornflowerblue;
+    }
+
+    .bar:hover {
+      fill: gray;
+    }
+
+    .axis--x path {
+      display: none;
+    }
+
+    /* radar */
+
+
+    .toolTip {
+      pointer-events: none;
+      position: absolute;
+      display: none;
+      min-width: 50px;
+      height: auto;
+      background: none repeat scroll 0 0 #ffffff;
+      padding: 9px 14px 6px 14px;
+      border-radius: 2px;
+      text-align: center;
+      line-height: 1.3;
+      color: #5B6770;
+      box-shadow: 0px 3px 9px rgba(0, 0, 0, .15);
+    }
+
+    .toolTip:after {
+      content: "";
+      width: 0;
+      height: 0;
+      border-left: 12px solid transparent;
+      border-right: 12px solid transparent;
+      border-top: 12px solid white;
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      margin-left: -12px;
+    }
+
+    .toolTip span {
+      font-weight: 500;
+      color: #081F2C;
+    }
+    #chart{
+      margin-left: 30%;
+      margin-top: 10%;
+    }
+  </style>
+  <!-- Load d3.js -->
+  <script src="https://d3js.org/d3.v4.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.0/topojson.min.js"></script>
+</head>
+
+<body>
+  <h2>Graduates of the member countries of the OECD</h2>
+  <!-- <h5>Graduates of the member countries of the Organisation for Economic Co-operation and Development (OECD)</h5> -->
+  <span>
+    <label for="fader">Select Year:</label>
+    <input type="range" min="2016" max="2021" value="2016" id="fader" onchange="ChangeYear(this.value);">
+    <label id="textInput">2016</label>
+  </span>
+  <span style="margin-left: 20px;">Select Country:</span>
+  <span>
+    <select  id="selectCountry"></select>
+  </span>
+
+  <div class="topdiv">
+
+    <!-- Container for flag image -->
+    <div class="listing">
+      <h2><u>Graduate for <span id="countryLabel1">Australia</span> <span id="yearLabel21">2016</span><u></h2>
+      <div id="chart"></div>
+    </div>
+    <!-- bar graph container -->
+    <div class="listing" style="border-left: 1px solid white;">
+      <h2 style="display: block; width: 400px; margin-left:150px;"><u>Graduate Per Country  <span id="yearLabel">2016</span></u></h2>
+      <div id="graph2"></div>
+    </div>
+  </div>
+  <hr>
+  <div class="topdiv">
+    <!-- Container for map -->
+    <div class="listing">
+      <div id="graph1"></div>
+      <h2><u>OECD Member Countries</u></h2>
+      <div id="graph3"></div>
+    </div>
+    <!-- Radar graph container -->
+    <div class="listing" style="border-left: 1px solid white;">
+      <h2><u>Top ten fields of study for <span id="countryLabel">Australia</span> <span id="yearLabel2">2016</span><u></h2>
+      <div id="graph4"></div>
+    </div>
+  </div>
+</body>
+<!-- Graphs creation function -->
+<script src="./Scripts/BarGraph.js"></script>
+<script src="./Scripts/RadarGraph.js"></script>
+<script src="./Scripts/WorldMap.js"></script>
+<script src="./Scripts/PieGraph.js"></script>
+<script>
+  //Read the data from Data/2018.csv
+  var fullData;
+  var mapData;
+  var YearData;
+  var CountryData;
+  var PieData;
+
+  d3.queue()
+    .defer(d3.csv, "Data/data.csv")
+    .defer(d3.csv, "Data/data1.csv")
+    .defer(d3.csv, "Data/data2.csv")
+    .defer(d3.csv, "Data/data3.csv")
+    .defer(d3.csv, "Data/data4.csv")
+    .defer(d3.json, "Data/world-topo.json")
+    .await(function (error, edu_data, edu_data1, edu_data2, edu_data3, edu_data4, map_data) {
+      if (error) throw error;
+      fullData = [...edu_data, ...edu_data1, ...edu_data2, ...edu_data3, ...edu_data4];
+      console.log(fullData, "fulldata")
+      mapData = map_data;
+      YearData = getFilterData(fullData, "Year", "2016");
+
+      contries = getKeys(YearData, "COUNTRY");
+      DrawWorldMap(mapData, "#graph3", contries);
+
+      DrawFlag("Australia");
+      DrawRadarGraphForCountry("Australia");
+      drawBarGraph();
+
+    var allGroup = topojson.feature(mapData, mapData.objects.countries).features;
+    var allCountries = [];
+    allGroup.forEach(function(d){
+      var test = contries.has(d.properties.id);
+      if(test){
+        allCountries.push(contries.get(d.properties.id));
+      }
+    })
+
+    // add the options to the button
+    d3.select("#selectCountry")
+      .selectAll('myOptions')
+     	.data(allCountries)
+      .enter()
+    	.append('option')
+      .text(function (d) { return d.Country; }) // text showed in the menu
+      .attr("value", function (d) { return d.COUNTRY; }) // corresponding value returned by the button
+      
+      d3.select("#selectCountry").on("change", function(d) {
+          var val = d3.select(this).property("value");
+          var test = contries.get(val);
+
+          d3.selectAll(".countrymap")
+                    .style("opacity", 0.4);
+          d3.selectAll(".bar").style("fill", "#6f257f")
+          console.log(val)
+          d3.selectAll("#"+test.Country).style("fill", "green")
+          DrawFlag(test.Country);
+          DrawRadarGraphForCountry(test.Country);
+
+          d3.selectAll("#"+ val).style("opacity", 1);
+      })
+
+
+    });
+
+  function drawBarGraph() {
+    // The bar chart can display the countries (x axis) and number of graduates (y axis)
+    CountryWiseGrad = getFilterData(YearData, "FIELD", "T");
+    CountryWiseGrad = getFilterData(YearData, "ISC11_LEVEL", "L6");
+
+    BarGraphData = d3.nest()
+      .key(function (d) {
+        return d["Country"];
+      })
+      .rollup(function (v) {
+        return v[0].Value;
+      })
+      .entries(CountryWiseGrad);
+
+    BarGraphData = BarGraphData.filter(function (d) {
+      if (!(d["key"] == "OECD - Total" || d["key"] == "OECD - Europe"))
+        return d;
+    });
+
+    BarGraphData.sort(function (a, b) {
+      return d3.descending(+a.value, +b.value);
+    });
+
+    BarGraphData.forEach(function (d) {
+      d.value = +d.value;
+    });
+
+    BarGraph(BarGraphData, "#graph2", "#6f257f", 600, 400);
+  }
+
+  function getDataSet(FilterData, properties) {
+    var GraphData = [];
+    properties.forEach(element => {
+      GraphData.push({
+        "key": element,
+        "value": getCount(FilterData, element)
+      })
+    });
+    GraphData = GraphData.sort(function (x, y) {
+      return d3.ascending(y.value, x.value);
+    })
+    return GraphData;
+  }
+
+  function getFilterData(data, property, value) {
+    var FilterData;
+    if (value != "")
+      FilterData = data.filter(function (d) {
+        return d[property] == value;
+      });
+    else
+      FilterData = data;
+
+    return FilterData;
+  }
+
+  function getKeys(data, property) {
+    var keys = d3.map(data, function (d) {
+      return d[property];
+    });
+    return keys;
+  }
+
+  function getCount(FilterData, property) {
+    var total = FilterData.reduce(function (count, entry) {
+      return count + (entry[property] == 1 ? 1 : 0);
+    }, 0);
+    return total;
+  }
+
+  function DrawFlag(countryName) {
+    d3.select('#graph1').html("");
+
+    d3.select('#graph1')
+      .append("h2")
+      .text(countryName)
+      .style("font-family", "sans-serif")
+      .style("font-size", "18px")
+      .attr("text-anchor", "middle")
+      .attr("dy", "1.5em");
+
+    d3.select('#graph1')
+      .append('img')
+      .attr('class', 'picture')
+      .attr("width", 100)
+      .attr("height", 50)
+      .style('border', '2px solid #000')
+      .attr('src', "Flags/" + countryName + ".png");
+  }
+
+  function DrawRadarGraphForCountry(countryName) {
+    
+    document.getElementById('countryLabel').innerHTML = countryName;
+    document.getElementById('countryLabel1').innerHTML = countryName;
+    CountryData = getFilterData(YearData, "Country", countryName);
+    CountryData = getFilterData(CountryData, "ISC11_LEVEL", "L6");
+    PieData = getFilterData(YearData, "Country", countryName);
+    PieData = getFilterData(PieData, "ISC11_LEVEL", "L6");
+    PieData = getFilterData(PieData, "Field of education", "Total: All fields of education");
+    PieData = getFilterData(PieData, "Country of origin", "World (all entities, including reference area, including IO)");
+    PieData = PieData.filter(function (d) {
+      return d["SEX"] != "T";
+    });
+    var temp = [];
+    PieData.forEach(function(d){
+      let obj = {};
+      obj.name = d.Sex;
+      obj.value = +d.Value;
+      temp.push(obj);
+    })
+    createPieGraph(temp)
+    console.log(PieData)
+
+    CountryData = CountryData.filter(function (d) {
+      return d["FIELD"] != "T";
+    });
+
+    RadarGraphData = d3.nest()
+      .key(function (d) {
+        return d["Field of education"];
+      })
+      .rollup(function (v) {
+        return v[0].Value;
+      })
+      .entries(CountryData);
+
+    RadarGraphData.forEach(function (d) {
+      d.value = +d.value;
+    });
+
+    var topData = RadarGraphData.sort(function (a, b) {
+      return d3.descending(+a.value, +b.value);
+    }).slice(0, 10);
+
+    RadarGraph([topData], "#graph4");
+
+  }
+
+  function ChangeYear(value) {
+    document.getElementById('textInput').innerHTML = value;
+    document.getElementById('yearLabel').innerHTML = value;
+    document.getElementById('yearLabel2').innerHTML = value;
+    document.getElementById('yearLabel21').innerHTML = value;
+
+    YearData = getFilterData(fullData, "Year", value);
+    // show reocrds based 
+    let countrySelected = document.getElementById('countryLabel').innerHTML;
+    DrawRadarGraphForCountry(countrySelected);
+    drawBarGraph();
+  }
+</script>
+
+</html>
